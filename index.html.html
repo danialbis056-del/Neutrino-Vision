@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neutrino Vision — 3D-симуляция</title>
+<style>
+:root{--bg:#0b1020;--panel:#121a30;--tx:#e6ecff;--mu:#8fa0c8;--ac:#4cc9f0;--ok:#3ddc97;--wr:#ff5d5d;--bd:#24304f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#eef2fb;--panel:#fff;--tx:#14203d;--mu:#55648a;--ac:#0a7bb5;--ok:#118a55;--wr:#d12f2f;--bd:#cfd8ee}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{display:grid;grid-template-columns:1fr 340px;height:100%}
+#view{position:relative;min-height:300px;overflow:hidden}
+#view canvas{display:block;width:100%;height:100%;touch-action:none}
+#hint{position:absolute;left:10px;bottom:8px;color:var(--mu);font-size:12px}
+#panel{background:var(--panel);border-left:1px solid var(--bd);padding:14px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+h1{font-size:18px;margin:0 0 2px}.sub{color:var(--mu);font-size:12px;margin-bottom:12px}
+label{display:flex;justify-content:space-between;margin-top:10px}
+input[type=range]{width:100%;accent-color:var(--ac)}
+select{width:100%;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:6px}
+.row{display:flex;gap:6px;align-items:center;margin-top:6px}
+.chk{display:flex;gap:8px;align-items:center;margin-top:6px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:16px 0 4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.card{background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px}
+.card b{display:block;font-size:17px}.card span{color:var(--mu);font-size:11px}
+#status{position:sticky;top:0;z-index:2;background:var(--panel);margin-top:10px;padding:12px;border-radius:8px;text-align:center;font-weight:700;font-size:18px;border:2px solid var(--ok);color:var(--ok)}
+#status.w{border-color:var(--wr);color:var(--wr)}
+#chart,.cv{width:100%;height:110px;background:var(--bg);border:1px solid var(--bd);border-radius:8px;margin-top:6px}
+button{background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:6px 10px;cursor:pointer}
+#tour{display:none}
+@keyframes fi{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+#welcome small{font-size:14px;letter-spacing:.25em;text-transform:uppercase;color:var(--ac);opacity:0;animation:fi 1s .3s forwards}
+#welcome h2{opacity:0;animation:fi 1s .9s forwards}
+#welcome p{opacity:0;animation:fi 1s 1.6s forwards}
+#welcome .big,#welcome #skip{opacity:0;animation:fi 1s 2.4s forwards}
+#welcome .by{opacity:0;animation:fi 1s 3s forwards;font-size:12px;color:#9fb0d8;margin-top:2px}
+.intro{position:relative;width:90px;height:90px}
+.core{position:absolute;inset:30px;border-radius:50%;background:radial-gradient(#ffd09a,#ff6a00);box-shadow:0 0 30px #ff8a3d;animation:pu 1.4s infinite alternate}
+.ring{position:absolute;inset:0;border:2px solid #4cc9f0;border-radius:50%;opacity:0;animation:rg 2.4s infinite}.r2{animation-delay:1.2s}
+@keyframes rg{0%{transform:scale(.3);opacity:.9}100%{transform:scale(2.8);opacity:0}}
+@keyframes pu{to{transform:scale(1.25)}}
+.hl{outline:2px solid #ffd166;outline-offset:3px;border-radius:6px;animation:hl .9s infinite alternate}
+@keyframes hl{to{box-shadow:0 0 14px #ffd166}}
+.task{margin-top:8px;padding:6px 8px;border:1px dashed #ffd166;border-radius:8px;color:#ffd166}.task.ok{border:1px solid var(--ok);color:var(--ok)}
+#bnext:disabled{opacity:.4;cursor:not-allowed}
+#hud{position:absolute;left:8px;right:8px;bottom:26px;display:flex;gap:6px;flex-wrap:wrap;z-index:4;pointer-events:none}
+.chip{background:var(--panel);opacity:.95;border:1px solid var(--bd);border-radius:8px;padding:4px 9px;font-size:11px;color:var(--mu);line-height:1.2}
+.chip b{display:block;font-size:16px;color:var(--tx)}
+.chip.ev{border-color:var(--ac)}.chip.s b{color:var(--ok)}.chip.s.w{border-color:var(--wr)}.chip.s.w b{color:var(--wr)}
+.big{width:100%;padding:14px;font-size:17px;font-weight:700;background:var(--ac);color:#04121f;border:0;border-radius:10px;margin-bottom:10px}
+#welcome{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;padding:20px;background:rgba(8,12,28,.74);z-index:6;color:#e6ecff}
+#welcome h2{font-size:26px;margin:0;text-transform:none;letter-spacing:0;color:#e6ecff}
+#welcome p{max-width:460px;margin:0;color:#c5d0ee}
+#welcome .big{width:auto;padding:16px 34px;font-size:20px;margin:0}
+#bubble{position:absolute;left:10px;right:10px;top:10px;max-height:52%;overflow:auto;background:var(--panel);border:1px solid var(--ac);border-radius:10px;padding:10px 12px;font-size:13px;display:none;z-index:5}
+#bubble .row{justify-content:flex-end}
+@media (max-width:760px),(max-height:500px) and (orientation:landscape){
+ #view{display:flex;flex-direction:column}
+ #view canvas{order:1;flex:1 1 0;height:auto;min-height:0}
+ #hud{order:2;position:static;flex-wrap:wrap;padding:4px 6px;gap:4px;pointer-events:auto;background:var(--bg)}
+ .chip{flex:1 1 28%;padding:3px 6px;font-size:10px}.chip b{font-size:13px}
+ #bubble{order:3;position:static;max-height:115px;margin:0;border-radius:0;border-width:1px 0 0;font-size:12px;padding:6px 10px}
+ #hint{display:none}
+}
+@media (max-width:760px){html #app{grid-template-rows:55% 45%}}
+@media (max-height:500px) and (orientation:landscape){html #app{grid-template-columns:1fr 42%}}
+#status{position:static}
+#dock{position:sticky;top:0;z-index:5;background:var(--panel);margin:-14px -14px 8px;padding:8px 14px;border-bottom:1px solid var(--bd)}
+#dock #hud{position:static;padding:0;background:none;pointer-events:auto}
+#dock #bubble{position:static;max-height:130px;margin-top:6px;font-size:12px;padding:6px 8px;border-radius:8px;border-width:1px}
+#hint{display:none}
+#view #hud{position:absolute;top:8px;right:8px;left:auto;bottom:auto;display:flex;flex-direction:column;flex-wrap:nowrap;gap:2px;padding:6px 8px;background:rgba(12,18,38,.78);border:1px solid var(--bd);border-radius:10px;pointer-events:none}
+#view #hud .chip{flex:none;display:flex;justify-content:space-between;gap:10px;align-items:baseline;background:none;border:0;padding:0;font-size:10px;color:#9fb0d8}
+#view #hud .chip b{display:inline;font-size:12px;color:#e6ecff}
+#view #hud .chip.ev b{color:#7df9ff}
+#view #hud .chip.s{margin-top:2px;padding-top:3px;border-top:1px solid var(--bd)}
+#view #hud .chip.s b{color:var(--ok)}#view #hud .chip.s.w b{color:var(--wr)}
+#view #bubble{position:absolute;left:8px;right:auto;bottom:8px;top:auto;max-width:min(520px,calc(100% - 16px));max-height:34%;margin:0;border-radius:10px;border-width:1px;font-size:12px;padding:8px 10px;background:rgba(18,26,48,.92);color:#e6ecff}
+@media (max-width:760px){#view #bubble{right:8px;max-width:none}}
+@media (max-width:1024px){#app{grid-template-columns:1fr 300px}}
+@media (max-width:760px){#app{grid-template-columns:1fr;grid-template-rows:46% 54%}#panel{border-left:0;border-top:1px solid var(--bd);padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}}
+@media (max-height:500px) and (orientation:landscape){#app{grid-template-columns:1fr 280px;grid-template-rows:none}#panel{border-left:1px solid var(--bd);border-top:0;font-size:13px}}
+@media (pointer:coarse){input[type=range]{height:32px}input[type=checkbox]{width:22px;height:22px}button,select{min-height:42px;font-size:16px}.chk{margin-top:12px}}
+</style>
+</head>
+<body>
+<div id="app">
+ <div id="view"><div id="welcome"><div class="intro"><i class="ring"></i><i class="ring r2"></i><i class="core"></i></div><small>Добро пожаловать!</small><h2>Neutrino Vision</h2><p>Интерактивная 3D-модель: как антинейтрино помогают контролировать реактор ВВЭР-1200 и повышать безопасность АЭС. Пройдите короткий гид: что это за работа, как пользоваться и что показывают данные.</p><button class="big" id="go">▶ Начать обучение</button><button id="skip">Пропустить</button><div class="by">Made by Akylbai Mansur and Tolendyev Danial</div></div><div id="bubble"><div id="btxt"></div><div class="row"><button id="bprev">◀ Назад</button><button id="bnext">Далее ▶</button><button id="bx">✕</button></div></div><div id="hud"><div class="chip"><span>Мощность</span><b id="h1"></b></div><div class="chip"><span>Расстояние</span><b id="h2"></b></div><div class="chip"><span>Ожидается</span><b id="h3"></b></div><div class="chip ev"><span>Измерено</span><b id="h4"></b></div><div class="chip"><span>Отклонение</span><b id="h5"></b></div><div class="chip s" id="hs"><span>Статус</span><b id="h6"></b></div></div><div id="hint">Мышь/палец — вращение · колесо/щипок — масштаб. Частицы показаны схематично.</div></div>
+ <div id="panel">
+  <button id="tour2" class="big">▶ Пройти урок</button>
+  <h1>Neutrino Vision</h1>
+  <div class="sub">ВВЭР-1200 · реактор и детектор на одной площадке АЭС (модель по DANSS)</div>
+
+  <div class="row"><button data-l="ru">RU</button><button data-l="kk">ҚАЗ</button><button data-l="en">EN</button></div>
+  <label><span>Тепловая мощность (по штатным приборам)</span><b id="pv"></b></label>
+  <input id="P" type="range" min="0" max="3520" step="10" value="3200">
+  <label><span>Расстояние детектора от активной зоны</span><b id="lv"></b></label>
+  <input id="L" type="range" min="10" max="40" step="0.1" value="20">
+  <label><span>Длительность измерения</span></label>
+  <select id="T"><option value="1">1 сутки</option><option value="7" selected>7 суток</option><option value="30">30 суток</option><option value="365">365 суток</option></select>
+  <div class="chk"><input id="bg" type="checkbox"><label for="bg" style="margin:0">Реалистичный режим (фон: 23% + 1,8%)</label></div>
+
+  <label><span>Реактор</span></label>
+  <select id="R"><option value="v">ВВЭР-1200 (Казахстан, 3200 МВт, 20 м)</option><option value="d">ВВЭР-1000 (DANSS, 3100 МВт, 10,9 м)</option></select>
+  <label><span>Выгорание топлива</span><b id="bv"></b></label>
+  <input id="B" type="range" min="0" max="100" value="0">
+  <div id="fuel" class="grid"></div>
+  <h2>Имитация аномалий (реальное состояние)</h2>
+  <div class="chk"><input id="a1" type="checkbox"><label for="a1" style="margin:0">Реальная мощность на 10% ниже заявленной</label></div>
+  <div class="chk"><input id="a2" type="checkbox"><label for="a2" style="margin:0">Реальная мощность на 8% выше заявленной</label></div>
+  <div class="chk"><input id="a3" type="checkbox"><label for="a3" style="margin:0">Сдвиг состава топлива (−4%, допущение)</label></div>
+  <div class="chk"><input id="a4" type="checkbox"><label for="a4" style="margin:0">Деградация детектора (эффективность 80%)</label></div>
+
+  <h2>Сценарии и обучение</h2>
+  <div class="row"><button id="drift">Плавный дрейф мощности</button><button id="jump">Скачок −10%</button></div>
+  <div class="sub">Скачок — мгновенное падение реальной мощности на 10%. Дрейф — медленное падение (−0,4% в секунду до −12%): его трудно заметить обычными датчиками, а детектор видит по накоплению статистики.</div>
+  <div class="row"><button id="tour">Режим «Урок»</button></div>
+  
+  <div id="status">НОРМА</div>
+  <h2>Измерения</h2>
+  <div class="grid">
+   <div class="card"><span>Ожидается, соб./сут</span><b id="ne"></b></div>
+   <div class="card"><span>Измерено (сигнал), соб./сут</span><b id="nm"></b></div>
+   <div class="card"><span>Отклонение D</span><b id="dd"></b></div>
+   <div class="card"><span>Стат. неопределённость δ</span><b id="dl"></b></div>
+   <div class="card"><span>Всего (с фоном), соб./сут</span><b id="nt"></b></div>
+   <div class="card"><span>Фон (оценка), соб./сут</span><b id="nb"></b></div>
+  </div>
+  <canvas id="chart" width="320" height="110"></canvas>
+  <h2>Сигнал от расстояния N(L)</h2><canvas id="c2" class="cv" width="640" height="220"></canvas>
+  <h2>Неопределённость от времени δ(t)</h2><canvas id="c3" class="cv" width="640" height="220"></canvas>
+  <h2>Журнал событий</h2><div id="log" class="card" style="max-height:110px;overflow:auto;font-size:12px"></div>
+  <div class="sub" style="margin-top:4px">D(t), %: синяя — отклонение D, красный пунктир — реальная мощность (скрыта от алгоритма), серые линии — смена параметров. Событий в 3D: <b id="vis">0</b></div>
+  <div class="row"><button id="rst">Сбросить камеру</button></div>
+  <div class="sub" style="margin-top:10px">Модель: N = 5000·(P/3100)·(10,9/L)²·k_топл (k — по долям ²³⁵U, ²³⁹Pu, ²³⁸U, ²⁴¹Pu из DANSS; веса — допущение), где 5000 соб./сут — DANSS при 10,9 м, 3100 МВт. Для ВВЭР-1200 (3200 МВт, 20 м) ≈ 1533 соб./сут. Предупреждение, если |D| &gt; 3% и |D| &gt; 3δ.</div>
+ </div>
+</div>
+<script>window.onerror=function(m,s,l){var h=document.getElementById('hint');if(h){h.style.color='#ff5d5d';h.style.fontSize='13px';h.textContent='Ошибка: '+m+' (строка '+l+')'}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>if(!window.THREE){var hh=document.getElementById('hint');hh.style.color='#ff5d5d';hh.textContent='Не загрузилась библиотека Three.js: проверьте интернет или откройте в Chrome/Safari.'}</script>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var view=$('view');
+var renderer=new THREE.WebGLRenderer({antialias:!matchMedia('(pointer:coarse)').matches});
+renderer.setPixelRatio(Math.min(devicePixelRatio,matchMedia('(pointer:coarse)').matches?1.5:2));
+view.appendChild(renderer.domElement);
+var scene=new THREE.Scene();(function(){var c=document.createElement('canvas');c.width=2;c.height=256;var g=c.getContext('2d'),gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'#050a1c');gr.addColorStop(0.6,'#16264d');gr.addColorStop(1,'#3a4a78');g.fillStyle=gr;g.fillRect(0,0,2,256);scene.background=new THREE.CanvasTexture(c)})();scene.fog=new THREE.FogExp2(0x1a2850,0.004);
+var cam=new THREE.PerspectiveCamera(50,1,0.1,500);
+var sph={r:62,th:0.9,ph:1.15},target=new THREE.Vector3(14,3,0);
+function placeCam(){cam.position.set(target.x+sph.r*Math.sin(sph.ph)*Math.cos(sph.th),target.y+sph.r*Math.cos(sph.ph),target.z+sph.r*Math.sin(sph.ph)*Math.sin(sph.th));cam.lookAt(target)}
+placeCam();
+scene.add(new THREE.AmbientLight(0x8899bb,0.7));
+var dl=new THREE.DirectionalLight(0xffffff,0.8);dl.position.set(20,40,20);scene.add(dl);
+var grid=new THREE.GridHelper(100,50,0x3a4a78,0x1c2745);scene.add(grid);
+
+// ===== фон: площадка АЭС =====
+var ground=new THREE.Mesh(new THREE.PlaneGeometry(500,500),new THREE.MeshStandardMaterial({color:0x1b2a2a,roughness:1}));
+ground.rotation.x=-Math.PI/2;ground.position.y=-0.05;scene.add(ground);
+var steam=[];
+function mat(c){return new THREE.MeshStandardMaterial({color:c,roughness:.8,metalness:.1})}
+function containment(x,z){
+ var g=new THREE.Group();
+ var b=new THREE.Mesh(new THREE.CylinderGeometry(7,7,22,32),mat(0xc9ced9));b.position.y=11;g.add(b);
+ var d=new THREE.Mesh(new THREE.SphereGeometry(7,32,16,0,Math.PI*2,0,Math.PI/2),mat(0xc9ced9));d.position.y=22;g.add(d);
+ var band=new THREE.Mesh(new THREE.CylinderGeometry(7.05,7.05,1.2,32),mat(0xd24a3a));band.position.y=14;g.add(band);
+ g.position.set(x,0,z);scene.add(g);
+}
+containment(-12,-32);containment(6,-36);
+// реакторное здание (полупрозрачное) — реактор внутри
+var glass=new THREE.MeshStandardMaterial({color:0xc9ced9,transparent:true,opacity:.16,side:THREE.DoubleSide,depthWrite:false});
+var rbShell=new THREE.Mesh(new THREE.CylinderGeometry(7.5,7.5,22,40,1,true),glass);rbShell.position.y=11;scene.add(rbShell);
+var rbDome=new THREE.Mesh(new THREE.SphereGeometry(7.5,40,16,0,Math.PI*2,0,Math.PI/2),glass);rbDome.position.y=22;scene.add(rbDome);
+var rbEdge=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(7.5,7.5,22,24)),new THREE.LineBasicMaterial({color:0xc9ced9,transparent:true,opacity:.5}));rbEdge.position.y=11;scene.add(rbEdge);
+var rbBand=new THREE.Mesh(new THREE.CylinderGeometry(7.55,7.55,1.2,40,1,true),new THREE.MeshBasicMaterial({color:0xd24a3a,side:THREE.DoubleSide}));rbBand.position.y=14;scene.add(rbBand);
+var rbFloor=new THREE.Mesh(new THREE.CylinderGeometry(7.5,7.5,0.3,40),mat(0x4a5470));rbFloor.position.y=0.05;scene.add(rbFloor);
+// корпус детектора на площадке АЭС (полупрозрачный)
+var dbGeo=new THREE.BoxGeometry(38,6,9);
+var dbox=new THREE.Mesh(dbGeo,new THREE.MeshStandardMaterial({color:0x9fb0d0,transparent:true,opacity:.12,depthWrite:false}));dbox.position.set(27,3,0);scene.add(dbox);
+var dbEdge=new THREE.LineSegments(new THREE.EdgesGeometry(dbGeo),new THREE.LineBasicMaterial({color:0x9fb0d0,transparent:true,opacity:.6}));dbEdge.position.set(27,3,0);scene.add(dbEdge);
+var dfloor=new THREE.Mesh(new THREE.BoxGeometry(38,0.2,9),mat(0x3b4560));dfloor.position.set(27,0.05,0);scene.add(dfloor);
+var dpass=new THREE.Mesh(new THREE.BoxGeometry(2,2.6,3),mat(0x6b7388));dpass.position.set(7.8,1.3,0);scene.add(dpass);
+function label(t,x,y,z,w){var c=document.createElement('canvas');c.width=512;c.height=96;var g=c.getContext('2d');g.fillStyle='#ffd27a';g.font='bold 44px sans-serif';g.textAlign='center';g.fillText(t,256,60);
+ var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false}));sp.scale.set(w,w*96/512,1);sp.position.set(x,y,z);scene.add(sp)}
+label('Реакторное здание',0,27,0,16);label('Корпус детектора',27,9,0,14);
+// машинный зал и вспомогательные здания
+var hall=new THREE.Mesh(new THREE.BoxGeometry(34,12,12),mat(0x8e98ad));hall.position.set(-4,6,-50);scene.add(hall);
+var roof=new THREE.Mesh(new THREE.BoxGeometry(35,1,13),mat(0x5b6680));roof.position.set(-4,12.5,-50);scene.add(roof);
+var aux=new THREE.Mesh(new THREE.BoxGeometry(14,8,10),mat(0x7a8499));aux.position.set(-30,4,-40);scene.add(aux);
+var win=new THREE.MeshBasicMaterial({color:0xffd27a});
+for(var wi=0;wi<9;wi++){var w=new THREE.Mesh(new THREE.BoxGeometry(2,1.2,0.1),win);w.position.set(-18+wi*3.5,7,-43.95);scene.add(w)}
+// градирни
+var prof=[[9,0],[7.8,9],[6.6,20],[7,30],[8,38]].map(function(p){return new THREE.Vector2(p[0],p[1])});
+[[-22,-68],[2,-72]].forEach(function(p){
+ var t=new THREE.Mesh(new THREE.LatheGeometry(prof,36),new THREE.MeshStandardMaterial({color:0xb7bece,roughness:.9,side:THREE.DoubleSide}));
+ t.position.set(p[0],0,p[1]);scene.add(t);
+ for(var i=0;i<12;i++){
+  var s=new THREE.Mesh(new THREE.SphereGeometry(3,10,8),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.2,depthWrite:false}));
+  s.userData={x:p[0],z:p[1],t:i/12};scene.add(s);steam.push(s);
+ }
+});
+// вентиляционная труба (красно-белая)
+for(var k=0;k<6;k++){var seg=new THREE.Mesh(new THREE.CylinderGeometry(1.6-k*0.1,1.7-k*0.1,9,16),mat(k%2?0xf2f2f2:0xd24a3a));seg.position.set(20,4.5+k*9,-48);scene.add(seg)}
+// ЛЭП
+var tops=[];
+for(var q=0;q<4;q++){var px=34+q*0,pz=-20-q*18;
+ var m=mat(0x6b7388);var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.4,16,8),m);pole.position.set(px,8,pz);scene.add(pole);
+ var arm=new THREE.Mesh(new THREE.BoxGeometry(7,0.3,0.3),m);arm.position.set(px,15,pz);scene.add(arm);
+ tops.push(new THREE.Vector3(px-3,15,pz),new THREE.Vector3(px+3,15,pz));}
+[-1,1].forEach(function(sd,si){var pl=[];for(var q=0;q<4;q++)pl.push(tops[q*2+si]);
+ var curve=new THREE.CatmullRomCurve3(pl);scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(40)),new THREE.LineBasicMaterial({color:0x0a0f1e})))});
+// ограждение площадки
+var fence=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(110,3,80)),new THREE.LineBasicMaterial({color:0x4d5a7d,transparent:true,opacity:.5}));
+fence.position.set(8,1.5,-22);scene.add(fence);
+function bx(w,h,d,x,y,z,c){var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c));m.position.set(x,y,z);scene.add(m);return m}
+function cy(r,h,x,y,z,c){var m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,20),mat(c));m.position.set(x,y,z);scene.add(m);return m}
+bx(110,0.06,4,8,0.03,10,0x252a35);bx(4,0.06,70,-44,0.03,-22,0x252a35);
+for(var i=0;i<14;i++){var lx=-40+i*7;bx(1.6,0.07,0.25,lx,0.07,10,0xe8e8e8);cy(0.12,6,lx,3,7,0x6b7388);var lb=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,6),new THREE.MeshBasicMaterial({color:0xffe9a8}));lb.position.set(lx,6.2,7);scene.add(lb)}
+bx(18,9,8,46,4.5,14,0xa9b3c9);bx(18.4,1,8.4,46,9.2,14,0x5b6680);for(var i=0;i<6;i++)bx(1.6,1.4,0.1,39+i*3,5,9.95,0xffd27a);
+bx(5,3.6,4,60,1.8,6,0xb08b4f);
+for(var i=0;i<6;i++){var sx=30+i*5.5;bx(3.4,3.6,3,sx,1.8,-24,0x6b7388);cy(0.35,2.4,sx,4.8,-24,0xd9cfae);bx(0.2,9,0.2,sx,4.5,-18,0x4d5a7d)}
+bx(30,0.3,0.3,38,9,-18,0x4d5a7d);
+bx(9,6,8,-30,3,-12,0x8e98ad);cy(0.5,9,-33,4.5,-12,0x6b7388);
+[-40,-35,-30].forEach(function(x){cy(2.6,6,x,3,-24,0xc4cbda)});
+bx(0.6,16,0.6,-20,8,-43,0xd9a21b);bx(18,0.6,0.6,-12,16,-43,0xd9a21b);
+var pond=new THREE.Mesh(new THREE.PlaneGeometry(40,24),new THREE.MeshStandardMaterial({color:0x1d4e7a,roughness:.2,metalness:.4}));pond.rotation.x=-Math.PI/2;pond.position.set(-72,0.04,-10);scene.add(pond);
+for(var i=0;i<16;i++){var tx=-48+i*8,tz=24+(i%3)*3;cy(0.3,2,tx,1,tz,0x5a3b22);var cone=new THREE.Mesh(new THREE.ConeGeometry(1.8,5,8),mat(0x2f6b3f));cone.position.set(tx,4.2,tz);scene.add(cone)}
+var beacon=new THREE.Mesh(new THREE.SphereGeometry(0.7,8,8),new THREE.MeshBasicMaterial({color:0xff3b3b}));beacon.position.set(20,54.5,-48);scene.add(beacon);
+function updateSteam(dt){
+ steam.forEach(function(s){var u=s.userData;u.t=(u.t+dt*0.06)%1;
+  s.position.set(u.x+u.t*14,40+u.t*40,u.z+Math.sin(u.t*6+u.x)*2);
+  s.scale.setScalar(0.6+u.t*2.2);s.material.opacity=0.28*(1-u.t)});
+}
+
+// реактор
+var vessel=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,11,32),new THREE.MeshStandardMaterial({color:0x7d8aa8,metalness:.5,roughness:.5,transparent:true,opacity:.55}));
+vessel.position.y=5.5;scene.add(vessel);
+var dome=new THREE.Mesh(new THREE.SphereGeometry(2.2,32,16,0,Math.PI*2,0,Math.PI/2),vessel.material);dome.position.y=11;scene.add(dome);
+var coreMat=new THREE.MeshStandardMaterial({color:0xff8a3d,emissive:0xff6a00,emissiveIntensity:1});
+var core=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,3.7,24),coreMat);core.position.y=4.5;scene.add(core);
+var coreLight=new THREE.PointLight(0xff8a3d,1.5,30);coreLight.position.y=4.5;scene.add(coreLight);
+var glow=new THREE.Mesh(new THREE.CylinderGeometry(1.9,1.9,4.2,24,1,true),new THREE.MeshBasicMaterial({color:0x4cc9f0,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false}));glow.position.y=4.5;scene.add(glow);
+
+// кольца расстояний и рельс
+[10,20,30,40].forEach(function(r){
+ var m=new THREE.Mesh(new THREE.RingGeometry(r-0.05,r+0.05,128),new THREE.MeshBasicMaterial({color:0x4cc9f0,transparent:true,opacity:.25,side:THREE.DoubleSide}));
+ m.rotation.x=-Math.PI/2;m.position.y=0.02;scene.add(m);
+ var c=document.createElement('canvas');c.width=128;c.height=48;var g=c.getContext('2d');g.fillStyle='#4cc9f0';g.font='bold 30px sans-serif';g.textAlign='center';g.fillText(r+' м',64,34);
+ var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true}));sp.scale.set(5,1.9,1);sp.position.set(r,0.8,-2.5);scene.add(sp);
+});
+var rail=new THREE.Mesh(new THREE.BoxGeometry(30,0.15,0.6),new THREE.MeshStandardMaterial({color:0x555e78}));rail.position.set(25,0.1,0);scene.add(rail);
+
+// детектор
+var det=new THREE.Group();
+var box=new THREE.Mesh(new THREE.BoxGeometry(3,2.4,3),new THREE.MeshStandardMaterial({color:0x2a9d8f,transparent:true,opacity:.75,emissive:0x0b3b36}));
+det.add(box);
+var edges=new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry),new THREE.LineBasicMaterial({color:0x9ff0e0}));det.add(edges);
+for(var i=-1;i<=1;i+=0.5){var s=new THREE.Mesh(new THREE.BoxGeometry(3.02,0.04,0.04),new THREE.MeshBasicMaterial({color:0x9ff0e0}));s.position.set(0,i*1.1,1.5);det.add(s)}
+det.position.y=1.3;scene.add(det);
+var flash=new THREE.PointLight(0x7df9ff,0,14);det.add(flash);
+
+// частицы
+var N=900,pos=new Float32Array(N*3),vel=new Float32Array(N*3),alive=new Uint8Array(N);
+var geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+var pts=new THREE.Points(geo,new THREE.PointsMaterial({color:0x7df9ff,size:0.45,transparent:true,opacity:.9,depthWrite:false}));
+pts.frustumCulled=false;scene.add(pts);
+for(var i=0;i<N;i++)pos[i*3+1]=-999;
+var cursor=0,acc=0,visHits=0,hitFlash=0;
+var rings=[];
+
+// состояние
+var S={P:3200,L:20,T:7,B:0,drift:0,bg:false,a1:false,a2:false,a3:false,a4:false};
+var tsec=0,lastW=false,driftOn=false,driftT0=0;var H=[],H2=[],mk=[];
+var hist=[];
+function gauss(){var u=0,v=0;while(!u)u=Math.random();v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function base(P,L){return 5000*(P/3100)*Math.pow(10.9/L,2)}
+var FU=[[73,45],[17,38],[7,8],[3,9]],FW=[1,0.75,1.6,1.04],FN=['²³⁵U','²³⁹Pu','²³⁸U','²⁴¹Pu'];
+function fr(b){return FU.map(function(a){return a[0]+(a[1]-a[0])*b/100})}
+function fuelF(b){var s=0;fr(b).forEach(function(v,i){s+=v/100*FW[i]});return s/1.0007}
+function expN(){return base(S.P,S.L)*fuelF(S.B)}
+function logAdd(m){$('log').insertAdjacentHTML('afterbegin','<div>t='+tsec+' c: '+m+'</div>')}
+function updFuel(){$('fuel').innerHTML=fr(S.B).map(function(v,i){return '<div class="card"><span>'+FN[i]+' '+v.toFixed(0)+'%</span><div style="height:6px;border-radius:3px;margin-top:4px;background:linear-gradient(90deg,var(--ac) '+v+'%,var(--bd) '+v+'%)"></div></div>'}).join('')}
+function drawC(){
+ var cs=getComputedStyle(document.documentElement),ac=cs.getPropertyValue('--ac'),mu=cs.getPropertyValue('--mu'),wr=cs.getPropertyValue('--wr'),tx=cs.getPropertyValue('--tx');
+ var c=$('c2'),g=c.getContext('2d'),w=c.width,h=c.height;g.clearRect(0,0,w,h);g.font='20px sans-serif';
+ var f=fuelF(S.B),mx=base(S.P,10)*f||1,X=function(L){return 30+(L-10)/30*(w-60)},Y=function(n){return h-30-n/mx*(h-60)};
+ g.strokeStyle=ac;g.lineWidth=3;g.beginPath();for(var L=10;L<=40;L+=0.5){var x=X(L),y=Y(base(S.P,L)*f);L==10?g.moveTo(x,y):g.lineTo(x,y)}g.stroke();
+ g.fillStyle=mu;[10,20,30,40].forEach(function(L){g.fillText(L+' '+U('m'),X(L)-14,h-6)});
+ var px=X(S.L),py=Y(expN());g.fillStyle=wr;g.beginPath();g.arc(px,py,8,0,7);g.fill();g.fillStyle=tx;g.fillText(Math.round(expN())+' '+U('e'),Math.min(px+12,w-190),py-12);
+ c=$('c3');g=c.getContext('2d');g.clearRect(0,0,w,h);g.font='20px sans-serif';
+ var Ne=Math.max(1,expN()),dm=100/Math.sqrt(Ne),X3=function(t){return 30+Math.log(t)/Math.log(365)*(w-60)},Y3=function(d){return h-30-d/dm*(h-60)};
+ g.strokeStyle=ac;g.lineWidth=3;g.beginPath();for(var t=1;t<=365;t*=1.05){var x3=X3(t),y3=Y3(100/Math.sqrt(Ne*t));t==1?g.moveTo(x3,y3):g.lineTo(x3,y3)}g.stroke();
+ g.fillStyle=mu;[1,7,30,365].forEach(function(t){g.fillText(t+' '+U('d'),X3(t)-20,h-6)});
+ var dd=100/Math.sqrt(Ne*S.T);g.fillStyle=wr;g.beginPath();g.arc(X3(S.T),Y3(dd),8,0,7);g.fill();g.fillStyle=tx;g.fillText('δ = '+dd.toFixed(2)+'%',Math.min(X3(S.T)+12,w-110),Y3(dd)-12);
+}
+function actualP(){var f=1+S.drift/100;if(S.a1)f*=0.9;if(S.a2)f*=1.08;return S.P*f}
+function trueN(){var n=base(actualP(),S.L)*fuelF(S.B);if(S.a3)n*=0.96;if(S.a4)n*=0.8;return n}
+
+function readUI(){
+ S.P=+$('P').value;S.L=+$('L').value;S.T=+$('T').value;S.B=+$('B').value;if(mk[mk.length-1]!==tsec)mk.push(tsec);S.bg=$('bg').checked;
+ $('bv').textContent=S.B+'% · k='+fuelF(S.B).toFixed(3);updFuel();
+ ['a1','a2','a3','a4'].forEach(function(k){S[k]=$(k).checked});
+ $('pv').textContent=S.P+' МВт ('+(S.P/32).toFixed(0)+'%)';
+ $('lv').textContent=S.L.toFixed(1)+' м';
+ det.position.x=S.L;
+ $('ne').textContent=Math.round(expN());drawC();
+ hist=[];
+}
+['P','L','T','B','bg','a1','a2','a3','a4'].forEach(function(k){$(k).addEventListener('input',readUI)});
+$('R').addEventListener('change',function(){var d=this.value=='d';$('P').value=d?3100:3200;$('L').value=d?10.9:20;readUI()});
+
+// измерение раз в секунду
+function measure(){
+ tsec++;if(driftOn&&S.drift>-12)S.drift=Math.max(-12,S.drift-0.4);
+ var days=S.T,Nt=trueN();
+ var bgFrac=S.bg?(0.23+0.018):0;
+ var mean=Nt*(1+bgFrac)*days;
+ var tot=Math.max(0,(mean+Math.sqrt(mean)*gauss())/days);
+ var Ne=expN();
+ var bgEst=S.bg?Ne*bgFrac:0;
+ var sig=tot-bgEst;
+ var D=Ne>0?(sig-Ne)/Ne*100:0;
+ var delta=Ne>0?100/Math.sqrt(Math.max(1,Ne*days)):0;
+ $('nt').textContent=Math.round(tot);
+ $('nb').textContent=Math.round(bgEst);
+ $('nm').textContent=Math.round(sig);
+ $('dd').textContent=(D>0?'+':'')+D.toFixed(2)+'%';
+ $('dl').textContent='±'+delta.toFixed(2)+'%';
+ var warn=Math.abs(D)>3&&Math.abs(D)>3*delta;
+ var st=$('status');st.textContent=warn?'WARNING — отклонение '+D.toFixed(1)+'%':'NORMAL';
+ st.className=warn?'w':'';
+ if(warn!==lastW){lastW=warn;logAdd(warn?'WARNING: D='+D.toFixed(1)+'%'+(driftOn||S.drift?' (через '+(tsec-driftT0)+' с после начала отклонения)':''):'возврат в норму')}
+ H.push(D);H2.push(S.P>0?(actualP()/S.P-1)*100:0);if(H.length>120){H.shift();H2.shift()}
+ drawChart();
+}
+function drawChart(){
+ var c=$('chart'),g=c.getContext('2d'),w=c.width,h=c.height,cs=getComputedStyle(document.documentElement);
+ g.clearRect(0,0,w,h);var R=15,y=function(v){return h/2-Math.max(-R,Math.min(R,v))/R*(h/2-6)};
+ g.strokeStyle=cs.getPropertyValue('--mu');g.setLineDash([4,4]);g.lineWidth=1;
+ [3,-3,0].forEach(function(t){g.beginPath();g.moveTo(0,y(t));g.lineTo(w,y(t));g.stroke()});g.setLineDash([]);
+ g.strokeStyle=cs.getPropertyValue('--ac');g.lineWidth=2;g.beginPath();
+ H.forEach(function(v,i){var x=i/119*w;i?g.lineTo(x,y(v)):g.moveTo(x,y(v))});g.stroke();
+ g.strokeStyle=cs.getPropertyValue('--wr');g.setLineDash([5,4]);g.beginPath();H2.forEach(function(v,i){var x=i/119*w;i?g.lineTo(x,y(v)):g.moveTo(x,y(v))});g.stroke();g.setLineDash([]);
+ g.strokeStyle=cs.getPropertyValue('--mu');g.globalAlpha=.5;mk.forEach(function(t){var i=H.length-1-(tsec-t);if(i>=0){var x=i/119*w;g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke()}});g.globalAlpha=1;
+}
+
+// частицы: визуальная скорость эмиссии ∝ реальная мощность
+function spawn(){
+ var i=cursor;cursor=(cursor+1)%N;
+ var th=Math.random()*Math.PI*2,u=Math.random()*2-1,s=Math.sqrt(1-u*u);
+ pos[i*3]=0;pos[i*3+1]=4.5;pos[i*3+2]=0;
+ var sp=26;vel[i*3]=Math.cos(th)*s*sp;vel[i*3+1]=u*sp;vel[i*3+2]=Math.sin(th)*s*sp;alive[i]=1;
+}
+function addRing(p){
+ var m=new THREE.Mesh(new THREE.RingGeometry(0.4,0.6,24),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:1,side:THREE.DoubleSide}));
+ m.position.copy(p);m.lookAt(cam.position);scene.add(m);rings.push({m:m,t:0});
+}
+var clock=new THREE.Clock(),tm=0;
+function frame(){
+ requestAnimationFrame(frame);
+ var dt=Math.min(clock.getDelta(),0.05);
+ var Pa=actualP();
+ acc+=dt*700*(Pa/3200);
+ while(acc>=1){spawn();acc--}
+ var dx=det.position.x,dy=det.position.y;
+ for(var i=0;i<N;i++){
+  if(!alive[i])continue;
+  var k=i*3;pos[k]+=vel[k]*dt;pos[k+1]+=vel[k+1]*dt;pos[k+2]+=vel[k+2]*dt;
+  var ex=pos[k]-dx,ey=pos[k+1]-dy,ez=pos[k+2];
+  if(Math.abs(ex)<1.5&&Math.abs(ey)<1.2&&Math.abs(ez)<1.5){
+   alive[i]=0;pos[k+1]=-999;visHits++;hitFlash=1;addRing(new THREE.Vector3(pos[k],dy,pos[k+2]));
+  }else if(pos[k]*pos[k]+pos[k+2]*pos[k+2]>2500||pos[k+1]<0||pos[k+1]>60){alive[i]=0;pos[k+1]=-999}
+ }
+ geo.attributes.position.needsUpdate=true;
+ hitFlash=Math.max(0,hitFlash-dt*4);flash.intensity=hitFlash*3;
+ box.material.emissive.setHex(hitFlash>0.3?0x1f8f80:0x0b3b36);
+ for(var j=rings.length-1;j>=0;j--){var r=rings[j];r.t+=dt;r.m.scale.setScalar(1+r.t*6);r.m.material.opacity=1-r.t*2.5;
+  if(r.t>0.4){scene.remove(r.m);r.m.geometry.dispose();r.m.material.dispose();rings.splice(j,1)}}
+ var pw=Pa/3200;coreMat.emissiveIntensity=0.2+pw*1.2;coreLight.intensity=pw*2;updateSteam(dt*(0.3+pw));camStep();glow.material.opacity=0.12+0.25*pw+0.05*Math.sin(clock.elapsedTime*5);
+ tm+=dt;if(tm>=1){tm=0;measure();$('vis').textContent=visHits}
+ renderer.render(scene,cam);
+}
+
+// камера
+var drag=null,pinch=0,ptrs={};
+renderer.domElement.addEventListener('pointerdown',function(e){ptrs[e.pointerId]=1;drag=Object.keys(ptrs).length===1?{x:e.clientX,y:e.clientY}:null;try{renderer.domElement.setPointerCapture(e.pointerId)}catch(x){}});
+function endP(e){delete ptrs[e.pointerId];drag=null}renderer.domElement.addEventListener('pointerup',endP);renderer.domElement.addEventListener('pointercancel',endP);
+renderer.domElement.addEventListener('pointermove',function(e){
+ if(!drag)return;sph.th-=(e.clientX-drag.x)*0.006;sph.ph=Math.max(0.15,Math.min(1.5,sph.ph-(e.clientY-drag.y)*0.006));drag={x:e.clientX,y:e.clientY};placeCam()});
+renderer.domElement.addEventListener('wheel',function(e){e.preventDefault();sph.r=Math.max(12,Math.min(160,sph.r*(1+e.deltaY*0.001)));placeCam()},{passive:false});
+renderer.domElement.addEventListener('touchmove',function(e){
+ if(e.touches.length===2){var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  if(pinch)sph.r=Math.max(12,Math.min(160,sph.r*pinch/d));pinch=d;placeCam()}},{passive:true});
+renderer.domElement.addEventListener('touchend',function(){pinch=0});
+$('rst').onclick=function(){sph={r:62,th:0.9,ph:1.15};target.set(14,3,0);placeCam()};
+$('drift').onclick=function(){driftOn=!driftOn;if(driftOn){driftT0=tsec;logAdd('старт дрейфа мощности')}else{S.drift=0;logAdd('дрейф остановлен')}this.textContent=driftOn?'Остановить дрейф':'Плавный дрейф мощности'};
+$('jump').onclick=function(){driftOn=false;$('drift').textContent='Плавный дрейф мощности';S.drift=S.drift?0:-10;driftT0=tsec;logAdd(S.drift?'скачок мощности −10%':'скачок снят')};
+var TS=[
+['1. Реактор','В активной зоне делятся ядра урана и плутония; продукты деления распадаются и излучают антинейтрино.',function(){return new THREE.Vector3(0,5,0)},26,0.9,1.2],
+['2. Поток частиц','Антинейтрино почти не взаимодействуют с веществом и свободно проходят сквозь стены. Их число пропорционально мощности.',function(){return new THREE.Vector3(10,4,0)},44,0.6,1.1],
+['3. Детектор','Сцинтилляционный детектор регистрирует обратный бета-распад p + ν̄ → n + e⁺. Число событий падает как 1/L².',function(){return new THREE.Vector3(S.L,2,0)},22,0.5,1.2],
+['4. Алгоритм','Измеренное число событий сравнивается с ожидаемым. Отклонение больше 3% и статистически значимое — WARNING. Включите аномалию!',function(){return new THREE.Vector3(14,3,0)},62,0.9,1.15]];
+var ti=-1;
+$('tour').onclick=function(){ti++;var b=$('tourbox');if(ti>=TS.length){ti=-1;b.style.display='none';target.set(14,3,0);sph={r:62,th:0.9,ph:1.15};placeCam();this.textContent='Режим «Урок»';return}
+ var s=TS[ti];b.style.display='block';b.innerHTML='<b style="font-size:14px">'+s[0]+'</b><span style="font-size:12px;color:var(--tx)">'+s[1]+'</span>';target.copy(s[2]());sph.r=s[3];sph.th=s[4];sph.ph=s[5];placeCam();this.textContent=ti==TS.length-1?'Завершить урок':'Далее ▶'};
+
+function resize(){var c0=renderer.domElement,w=c0.clientWidth||view.clientWidth,h=c0.clientHeight||view.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.fov=cam.aspect<1?72:50;cam.updateProjectionMatrix();var ch=$('chart');ch.width=(ch.clientWidth||320)*2;ch.height=220;drawChart()}
+window.addEventListener('resize',resize);resize();
+var LG='ru',UN={ru:{m:'м',d:'сут',e:'соб./сут'},kk:{m:'м',d:'тәул.',e:'оқиға/тәул.'},en:{m:'m',d:'d',e:'ev/day'}};
+function U(k){return UN[LG][k]}
+var LP=[
+['В активной зоне делятся ядра урана и плутония; продукты деления распадаются и излучают антинейтрино.','Активті аймақта уран мен плутоний ядролары бөлінеді; бөліну өнімдері ыдырап, антинейтрино шығарады.','Uranium and plutonium nuclei fission in the core; the fission products decay and emit antineutrinos.'],
+['Антинейтрино почти не взаимодействуют с веществом и свободно проходят сквозь стены. Их число пропорционально мощности.','Антинейтрино заттармен дереу әрекеттеспейді және қабырғалардан еркін өтеді. Олардың саны қуатқа пропорционал.','Antineutrinos barely interact with matter and pass freely through walls. Their number is proportional to power.'],
+['Сцинтилляционный детектор регистрирует обратный бета-распад','Сцинтилляциялық детектор кері бета-ыдырауды тіркейді','The scintillation detector registers inverse beta decay'],
+['Число событий падает как','Оқиға саны азаяды:','The event count falls as'],
+['Измеренное число событий сравнивается с ожидаемым. Отклонение больше 3% и статистически значимое — WARNING. Включите аномалию!','Өлшенген оқиға саны күтілетінмен салыстырылады. Ауытқу 3%-дан жоғары және статистикалық маңызды болса — ЕСКЕРТУ. Ауытқуды қосыңыз!','The measured event count is compared with the expected one. A deviation above 3% that is statistically significant triggers WARNING. Enable an anomaly!'],
+['Мышь/палец — вращение · колесо/щипок — масштаб. Частицы показаны схематично.','Тінтуір/саусақ — айналдыру · дөңгелек/қысу — масштаб. Бөлшектер схемалық түрде көрсетілген.','Mouse/finger — rotate · wheel/pinch — zoom. Particles are schematic.'],
+['ВВЭР-1200 · реактор и детектор на одной площадке АЭС (модель по DANSS)','ВВЭР-1200 · реактор мен детектор бір АЭС алаңында (DANSS үлгісі)','VVER-1200 · reactor and detector on one NPP site (DANSS-based model)'],
+['Тепловая мощность (по штатным приборам)','Жылу қуаты (штаттық құралдар бойынша)','Thermal power (by plant instruments)'],
+['Расстояние детектора от активной зоны','Детектордан активті аймаққа дейінгі қашықтық','Detector distance from the core'],
+['Длительность измерения','Өлшеу ұзақтығы','Measurement duration'],
+['365 суток','365 тәулік','365 days'],['30 суток','30 тәулік','30 days'],['7 суток','7 тәулік','7 days'],['1 сутки','1 тәулік','1 day'],
+['Реалистичный режим (фон: 23% + 1,8%)','Нақты режим (фон: 23% + 1,8%)','Realistic mode (background: 23% + 1.8%)'],
+['ВВЭР-1200 (Казахстан, 3200 МВт, 20 м)','ВВЭР-1200 (Қазақстан, 3200 МВт, 20 м)','VVER-1200 (Kazakhstan, 3200 MW, 20 m)'],
+['ВВЭР-1000 (DANSS, 3100 МВт, 10,9 м)','ВВЭР-1000 (DANSS, 3100 МВт, 10,9 м)','VVER-1000 (DANSS, 3100 MW, 10.9 m)'],
+['Выгорание топлива','Отынның жануы','Fuel burnup'],
+['Имитация аномалий (реальное состояние)','Ауытқуларды имитациялау (нақты күй)','Anomaly simulation (actual state)'],
+['Реальная мощность на 10% ниже заявленной','Нақты қуат мәлімделгеннен 10% төмен','Actual power 10% below declared'],
+['Реальная мощность на 8% выше заявленной','Нақты қуат мәлімделгеннен 8% жоғары','Actual power 8% above declared'],
+['Сдвиг состава топлива (−4%, допущение)','Отын құрамының ығысуы (−4%, жорамал)','Fuel composition shift (−4%, assumption)'],
+['Деградация детектора (эффективность 80%)','Детектор деградациясы (тиімділік 80%)','Detector degradation (80% efficiency)'],
+['Сценарии и обучение','Сценарийлер және оқыту','Scenarios and tutorial'],
+['Остановить дрейф','Дрейфті тоқтату','Stop drift'],
+['Плавный дрейф мощности','Қуаттың баяу дрейфі','Gradual power drift'],
+['Скачок −10%','Секіріс −10%','Jump −10%'],['Режим «Урок»','«Сабақ» режимі','Tutorial mode'],['Далее ▶','Келесі ▶','Next ▶'],['Завершить урок','Сабақты аяқтау','Finish tutorial'],
+['НОРМА','ҚАЛЫПТЫ','NORMAL'],['NORMAL','ҚАЛЫПТЫ','NORMAL'],['WARNING — отклонение','ЕСКЕРТУ — ауытқу','WARNING — deviation'],['WARNING','ЕСКЕРТУ','WARNING'],
+['Измерения','Өлшемдер','Measurements'],['Ожидается','Күтілетін','Expected'],['Измерено (сигнал)','Өлшенген (сигнал)','Measured (signal)'],['Отклонение D','Ауытқу D','Deviation D'],['Стат. неопределённость δ','Стат. белгісіздік δ','Stat. uncertainty δ'],['Всего (с фоном)','Барлығы (фонмен)','Total (with background)'],['Фон (оценка)','Фон (бағалау)','Background (est.)'],
+['Сигнал от расстояния N(L)','Қашықтыққа тәуелді сигнал N(L)','Signal vs distance N(L)'],['Неопределённость от времени δ(t)','Уақытқа тәуелді белгісіздік δ(t)','Uncertainty vs time δ(t)'],['Журнал событий','Оқиғалар журналы','Event log'],
+['D(t), %: линии — порог ±3%. Визуальных событий в 3D:','D(t), %: сызықтар — ±3% шегі. 3D-дегі көрнекі оқиғалар:','D(t), %: lines — ±3% threshold. Visual events in 3D:'],
+['Сбросить камеру','Камераны қалпына келтіру','Reset camera'],
+['Модель:','Үлгі:','Model:'],['k_топл','k_отын','k_fuel'],['(k — по долям','(k — үлестер бойынша','(k — from fractions of'],['из DANSS; веса — допущение','DANSS-тен; салмақтар — жорамал','from DANSS; weights are an assumption'],['где 5000','мұндағы 5000','where 5000'],['— DANSS при 10,9 м','— DANSS, 10,9 м кезінде','— DANSS at 10.9 m'],['Для ВВЭР-1200','ВВЭР-1200 үшін','For VVER-1200'],['Предупреждение, если','Ескерту, егер','Warning if'],[' и |D|',' және |D|',' and |D|'],
+['старт дрейфа мощности','қуат дрейфінің басталуы','power drift started'],['дрейф остановлен','дрейф тоқтатылды','drift stopped'],['скачок мощности −10%','қуаттың −10% секірісі','power jump −10%'],['скачок снят','секіріс алынды','jump removed'],['возврат в норму','қалыпқа оралу','back to normal'],['(через ','(','(after '],[' с после начала отклонения)',' с кейін)',' s after deviation start)'],
+['2. Поток частиц','2. Бөлшектер ағыны','2. Particle flux'],['3. Детектор','3. Детектор','3. Detector'],['4. Алгоритм','4. Алгоритм','4. Algorithm'],['1. Реактор','1. Реактор','1. Reactor'],
+['реактор','реактор','reactor'],['Реактор','Реактор','Reactor'],['МВт','МВт','MW'],['соб./сут','оқиға/тәул.','ev/day']];
+var orig=new WeakMap();
+function tr(s){if(LG=='ru')return s;var i=LG=='kk'?1:2;LP.forEach(function(p){if(s.indexOf(p[0])>-1)s=s.split(p[0]).join(p[i])});return s}
+function walk(){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),x,t;while(x=w.nextNode()){if(!orig.has(x))orig.set(x,x.data);t=tr(orig.get(x));if(x.data!==t)x.data=t}}
+function setLang(l){LG=l;document.documentElement.lang=l;showTour();walk();drawC();document.querySelectorAll('[data-l]').forEach(function(b){b.style.borderColor=b.dataset.l==l?'var(--ac)':''})}
+new MutationObserver(walk).observe(document.body,{childList:true,subtree:true});
+document.querySelectorAll('[data-l]').forEach(function(b){b.onclick=function(){setLang(b.dataset.l)}});
+LP.push(['D(t), %: синяя — отклонение D, красный пунктир — реальная мощность (скрыта от алгоритма), серые линии — смена параметров. Событий в 3D:','D(t), %: көк — D ауытқуы, қызыл уаттық сызық — нақты қуат (алгоритмге жасырын), сұр сызықтар — параметрлердің өзгеруі. 3D-дегі оқиғалар:','D(t), %: blue — deviation D, red dashed — real power (hidden from the algorithm), grey lines — parameter changes. Events in 3D:'],['Скачок — мгновенное падение реальной мощности на 10%. Дрейф — медленное падение (−0,4% в секунду до −12%): его трудно заметить обычными датчиками, а детектор видит по накоплению статистики.','Секіріс — нақты қуаттың лезде 10%-ға түсуі. Дрейф — баяу төмендеу (секундына −0,4%, −12%-ға дейін): әдеттегі датчиктермен байқау қиын, ал детектор статистика жинақталған сайын көреді.','Jump — an instant 10% drop in real power. Drift — a slow decline (−0.4% per second, down to −12%): hard to notice with ordinary sensors, but the detector sees it as statistics accumulate.']);
+function setV(o){if('P' in o)$('P').value=o.P;if('L' in o)$('L').value=o.L;if('B' in o)$('B').value=o.B;if('T' in o)$('T').value=o.T;if('bg' in o)$('bg').checked=!!o.bg;if(o.a)['a1','a2','a3','a4'].forEach(function(k,i){$(k).checked=!!o.a[i]});S.drift=0;driftOn=false;$('drift').textContent='Плавный дрейф мощности';$('R').value='v';readUI()}
+var V0=function(x,y,z){return function(){return new THREE.Vector3(x,y,z)}};
+var TX=[
+[['1. Реактор и антинейтрино','1. Реактор және антинейтрино','1. Reactor and antineutrinos'],['В активной зоне ВВЭР-1200 делятся ядра урана и плутония: около 10²⁰ делений в секунду (3200 МВт). Осколки нестабильны и распадаются (β-распад), излучая в среднем около 6 антинейтрино на деление. Число частиц прямо пропорционально мощности. Сквозь стены они проходят свободно — это и делает метод безынтервенционным.','ВВЭР-1200 активті аймағында уран мен плутоний ядролары бөлінеді: секундына шамамен 10²⁰ бөліну (3200 МВт). Сынықтар тұрақсыз және ыдырайды (β-ыдырау), бір бөлінуге орташа 6 антинейтрино шығарады. Саны қуатқа тура пропорционал. Қабырғалардан еркін өтеді — сондықтан әдіс реакторға араласпайды.','In the VVER-1200 core uranium and plutonium nuclei fission: about 10²⁰ fissions per second (3200 MW). The fragments are unstable and decay (β-decay), emitting about 6 antineutrinos per fission on average. Their number is directly proportional to power. They pass freely through walls, which is why the method does not interfere with the reactor.'],V0(0,5,0),26,0.9,1.2,function(){setV({P:3200,L:20,B:0,T:7,bg:0,a:[0,0,0,0]})}],
+[['2. Детектор','2. Детектор','2. The detector'],['Регистрация — обратный бета-распад: p + ν̄ → n + e⁺. Позитрон даёт мгновенную вспышку, нейтрон захватывается чуть позже — эта пара вспышек отличает антинейтрино от фона. В DANSS — 2500 пластиковых сцинтилляторов (≈1 м³) и около 5000 событий в сутки на 10,9 м. Счётчик права — видно вспышки в 3D.','Тіркеу — кері бета-ыдырау: p + ν̄ → n + e⁺. Позитрон дереу жарқыл береді, нейтрон біраз кейін қалады — бұл жарқыл жұбы антинейтриноны фоннан ажыратады. DANSS-та 2500 пластикті сцинтиллятор (≈1 м³), 10,9 м-де тәулікте шамамен 5000 оқиға. 3D-де жарқылдарды көріңіз.','Detection uses inverse beta decay: p + ν̄ → n + e⁺. The positron gives an instant flash and the neutron is captured a bit later — this pair of flashes separates antineutrinos from background. DANSS has 2500 plastic scintillator strips (≈1 m³) and records about 5000 events per day at 10.9 m. Watch the flashes in 3D.'],V0(11,2,0),22,0.5,1.2,function(){setV({L:10.9})}],
+[['3. Закон 1/L²','3. 1/L² заңы','3. The 1/L² law'],['Поток антинейтрино растекается во все стороны, поэтому сигнал падает как 1/L². Детектор отодвинут до 40 м: событий в 4 раза меньше, чем на 20 м (≈383 вместо 1533 в сутки). Чем дальше детектор, тем дольше нужно накапливать данные. Смотрите график N(L).','Антинейтрино ағыны барлық бағытқа таралады, сондықтан сигнал 1/L² бойынша азаяды. Детектор 40 м-ге жылжытылды: оқиға 20 м-дегіден 4 есе аз (≈383, 1533-тің орнына). Үзақ болса, дерек жинау уақыты да ұзақ. N(L) графигін қараңыз.','The antineutrino flux spreads in all directions, so the signal falls as 1/L². The detector is moved to 40 m: 4 times fewer events than at 20 m (≈383 instead of 1533 per day). The farther the detector, the longer data must accumulate. See the N(L) chart.'],V0(25,2,0),44,0.6,1.1,function(){setV({L:40})}],
+[['4. Мощность реактора','4. Реактор қуаты','4. Reactor power'],['Мощность снижена до 50% (1600 МВт) — сигнал упал ровно вдвое, что и ожидалось (N ∼ P). Важно: алгоритм знает заявленную мощность, поэтому тревоги нет. Тревога возникает лишь если реальная мощность расходится с показаниями приборов. Так DANSS следил за мощностью с точностью ≈1%.','Қуат 50%-ға (1600 МВт) дейін төмендетілді — сигнал дәл 2 есе азайды (N ∼ P). Алгоритм мәлімделген қуатты біледі, сондықтан алаңдату жоқ. Алаңдату тек нақты қуат құрал көрсеткіштерінен ауытқыса туады. DANSS қуатты ≈1% дәлдікпен бақылады.','Power is cut to 50% (1600 MW) — the signal drops exactly by half, as expected (N ∼ P). The algorithm knows the declared power, so there is no alarm. An alarm appears only if the real power disagrees with the instruments. This is how DANSS tracked power to about 1%.'],V0(14,3,0),62,0.9,1.15,function(){setV({L:20,P:1600})}],
+[['5. Фон и статистика','5. Фон және статистика','5. Background and statistics'],['Включён реалистичный фон (~23% случайных + 1,8% коррелированных, в основном от космических мюонов), длительность — 1 сутки. События случайны, поэтому неопределённость δ = 1/√N: за сутки ≈2,5%, за неделю ≈1%, за год ≈0,13%. Переключите длительность и следите за кривой δ(t).','Реалды фон қосылды (~23% агаш + 1,8% корреляциялық, негізінен ғарыштық мюондардан), ұзақтығы — 1 тәулік. Оқиғалар саттық, сондықтан белгісіздік δ = 1/√N: тәулікте ≈2,5%, аптада ≈1%, жылда ≈0,13%. Ұзақтықты ауыстырып, δ(t) сызығын қадағалаңыз.','A realistic background is on (~23% random + 1.8% correlated, mostly from cosmic muons), duration 1 day. Events are random, so the uncertainty is δ = 1/√N: ≈2.5% per day, ≈1% per week, ≈0.13% per year. Switch the duration and watch the δ(t) curve.'],V0(14,3,0),62,0.9,1.15,function(){setV({P:3200,L:20,T:1,bg:1})}],
+[['6. Выгорание топлива','6. Отынның жануы','6. Fuel burnup'],['Выгорание — сколько топлива уже работало в кампании. Доля ²³⁵U падает (73→45%), ²³⁹Pu растёт (17→38%). Разные изотопы дают разное число антинейтрино, поэтому сигнал снижается на ~4% при той же мощности. Ожидаемое значение учитывает это, тревоги нет. Детектор видит не только мощность, но и состав топлива.','Жану — кампанияда отынның қаншасы жұмыс істегені. ²³⁵U үлесі азаяды (73→45%), ²³⁹Pu өседі (17→38%). Әртүрлі изотоптар әртүрлі антинейтрино береді, сондықтан қуат бір болса да сигнал ~4%-ға азаяды. Күтілетін мән бұны ескереді, алаңдату жоқ. Детектор қуатты ғана емес, отын құрамын да көреді.','Burnup is how much of the fuel has already been used in the campaign. The ²³⁵U share falls (73→45%) and ²³⁹Pu grows (17→38%). Different isotopes give different antineutrino yields, so the signal drops by ~4% at the same power. The expected value accounts for this, so there is no alarm. The detector sees not only power but also fuel composition.'],V0(14,3,0),62,0.9,1.15,function(){setV({B:100,T:7,bg:0})}],
+[['7. Скачок и дрейф','7. Секіріс және дрейф','7. Jump and drift'],['Теперь реальная мощность скачком упала на 10%, а заявленная — прежняя (датчики ошибаются или неисправны). Скачок — резкое изменение (отказ насоса, срабатывание защиты). Дрейф — медленный сдвиг (износ, разбаланс), который трудно заметить. Нажмите «Плавный дрейф» и сравните время обнаружения в журнале. Красный пунктир на графике — истинная мощность.','Енді нақты қуат секіріп 10%-ға түсті, ал мәлімделгені бұрынғыдай (датчиктер қателеседі). Секіріс — кетінді өзгеріс (сорғының бұзылуы, қорғаныстың сабаҳтауы). Дрейф — баяу жылжу (тозу, тепе-теңдіктің бұзылуы), байқау қиын. «Қуаттың баяу дрейфі» түймесін басып, журналдағы анықтау уақытын салыстырыңыз. Графиктегі қызыл уаттық сызық — нақты қуат.','Now the real power has dropped by 10% in a jump, while the declared power is unchanged (sensors err or fail). A jump is an abrupt change (pump failure, protection trip). Drift is a slow shift (wear, imbalance) that is hard to notice. Press “Gradual power drift” and compare the detection time in the log. The red dashed line on the chart is the true power.'],V0(14,3,0),62,0.9,1.15,function(){setV({B:0,bg:0,T:7});S.drift=-10;driftT0=tsec;logAdd('скачок мощности −10%')}],
+[['8. Итоги','8. Қорытынды','8. Summary'],['Детектор даёт независимый канал информации о мощности и составе топлива без вмешательства в активную зону; его нельзя экранировать, а детектор можно двигать. Ограничения: для точности ≈1% нужны дни накопления, а алгоритм сейчас пороговый. Дальше его можно заменить обучаемой моделью (ИИ), которая различает типы аномалий. Сбросьте параметры и экспериментируйте сами!','Детектор активті аймаққа араласпай, қуат пен отын құрамы туралы тәуелсіз ақпарат арнасын береді; оны қалқалауға болмайды, детекторды жылжытуға болады. Шектеулер: ≈1% дәлдік үшін күндер керек, алгоритм қазір шектік. Келешекте оны ауытқу түрлерін ажырататын үйретілген модельмен (ЖИ) ауыстыруға болады. Параметрлерді тазалап, өзіңіз тәжірибе жасаңыз!','The detector gives an independent channel of information about power and fuel composition without interfering with the core; it cannot be shielded and it can be moved. Limitations: ~1% precision needs days of data, and the algorithm is currently a threshold one. Later it can be replaced by a trained model (AI) that tells anomaly types apart. Reset the parameters and experiment yourself!'],V0(14,3,0),62,0.9,1.15,function(){setV({P:3200,L:20,B:0,T:7,bg:0,a:[0,0,0,0]})}]];
+function showTour(){var b=$('tourbox');if(ti<0){b.style.display='none';return}var s=TX[ti],i=LG=='kk'?1:LG=='en'?2:0;b.style.display='block';b.innerHTML='<b style="font-size:14px">('+(ti+1)+'/'+TX.length+') '+s[0][i]+'</b><span style="font-size:12px;color:var(--tx)">'+s[1][i]+'</span>'}
+$('tour').onclick=function(){ti++;if(ti>=TX.length){ti=-1;setV({P:3200,L:20,B:0,T:7,bg:0,a:[0,0,0,0]});target.set(14,3,0);sph={r:62,th:0.9,ph:1.15};placeCam();showTour();this.textContent='Режим «Урок»';return}var s=TX[ti];s[6]();target.copy(s[2]());sph.r=s[3];sph.th=s[4];sph.ph=s[5];placeCam();showTour();this.textContent=ti==TX.length-1?'Завершить урок':'Далее ▶'};
+LP.push(['Интерактивная 3D-модель: как антинейтрино помогают контролировать реактор ВВЭР-1200 и повышать безопасность АЭС. Пройдите короткий гид: что это за работа, как пользоваться и что показывают данные.','Интерактивті 3D-модель: антинейтрино ВВЭР-1200 реакторын бақылауға және АЭС қауіпсіздігін арттыруға қалай көмектеседі. Қысқа гидтен өтіңіз: бұл қандай жұмыс, қалай қолданылады және деректер нені көрсетеді.','An interactive 3D model of how antineutrinos help monitor a VVER-1200 reactor and improve NPP safety. Take a short guide: what this work is, how to use it and what the data show.'],['Начать обучение','Оқытуды бастау','Start tutorial'],['Пропустить','Өткізіп жіберу','Skip'],['◀ Назад','◀ Артқа','◀ Back']);
+var camGoal=null;
+function camStep(){if(!camGoal)return;var k=0.05;target.lerp(camGoal.v,k);sph.r+=(camGoal.r-sph.r)*k;sph.th+=(camGoal.th-sph.th)*k;sph.ph+=(camGoal.ph-sph.ph)*k;placeCam();if(Math.abs(camGoal.r-sph.r)<0.3&&Math.abs(camGoal.th-sph.th)<0.01)camGoal=null}
+renderer.domElement.addEventListener('pointerdown',function(){camGoal=null});
+var RST=function(){setV({P:3200,L:20,B:0,T:7,bg:0,a:[0,0,0,0]})};
+var TY=[
+[['1. О проекте','1. Жоба туралы','1. About the project'],['Модель показывает идею: следить за реактором по антинейтрино — частицам, которые свободно проходят сквозь стены. Это независимый канал контроля мощности и топлива без вмешательства в реактор — дополнительная защита для АЭС, в том числе будущей АЭС Казахстана.','Модель идеяны көрсетеді: реакторды антинейтрино арқылы бақылау — бұл бөлшектер қабырғалардан еркін өтеді. Бұл реакторға араласпай қуат пен отынды бақылайтын тәуелсіз арна — АЭС, соның ішінде Қазақстанның болашақ АЭС-і үшін қосымша қорғаныс.','The model shows an idea: monitoring a reactor through antineutrinos — particles that pass freely through walls. It is an independent channel for power and fuel control without interfering with the reactor — extra protection for nuclear plants, including Kazakhstan’s future one.'],[10,10,-18],95,0.9,0.85,RST],
+[['2. Реактор','2. Реактор','2. The reactor'],['В активной зоне ВВЭР-1200 делятся ядра урана и плутония (≈10²⁰ делений в секунду). Продукты деления распадаются и излучают антинейтрино — их число пропорционально мощности.','ВВЭР-1200 активті аймағында уран мен плутоний ядролары бөлінеді (секундына ≈10²⁰). Бөліну өнімдері ыдырап, антинейтрино шығарады — олардың саны қуатқа пропорционал.','In the VVER-1200 core, uranium and plutonium nuclei fission (≈10²⁰ per second). The fission products decay and emit antineutrinos — their number is proportional to power.'],[0,6,0],24,0.4,1.25,RST],
+[['3. Детектор','3. Детектор','3. The detector'],['Детектор ловит обратный бета-распад p + ν̄ → n + e⁺ (пара вспышек). В DANSS ≈5000 событий в сутки на 10,9 м. Чем дальше детектор (сейчас 30 м), тем меньше событий: сигнал падает как 1/L².','Детектор кері бета-ыдырауды p + ν̄ → n + e⁺ (жарқыл жұбы) тіркейді. DANSS-та 10,9 м-де тәулігіне ≈5000 оқиға. Детектор алыс болған сайын (қазір 30 м) оқиға аз: сигнал 1/L² бойынша азаяды.','The detector catches inverse beta decay p + ν̄ → n + e⁺ (a pair of flashes). DANSS sees ≈5000 events per day at 10.9 m. The farther the detector (now 30 m), the fewer events: the signal falls as 1/L².'],[28,2,0],30,1.9,1.1,function(){setV({L:30})}],
+[['4. Управление','4. Басқару','4. Controls'],['В панели управления ползунок «Тепловая мощность» задаёт заявленную мощность, «Расстояние» двигает детектор. Ниже — выбор реактора, длительность измерения и фон. Сейчас мощность 50%: сигнал упал вдвое.','Басқару панелінде «Жылу қуаты» жарияланған қуатты береді, «Қашықтық» детекторды жылжытады. Төменде — реактор таңдау, өлшеу ұзақтығы және фон. Қазір қуат 50%: сигнал екі есе азайды.','In the control panel, the “Thermal power” slider sets the declared power and “Distance” moves the detector. Below: reactor choice, measurement duration and background. Power is now 50%: the signal dropped by half.'],[14,3,0],55,0.9,1.15,function(){setV({P:1600,L:20})}],
+[['5. Что показывают данные','5. Деректер нені көрсетеді','5. What the data show'],['Карточки: ожидаемое и измеренное число событий в сутки, отклонение D и неопределённость δ. Статус NORMAL или WARNING — решение алгоритма. Графики: D(t), N(L) и δ(t). Журнал записывает тревоги.','Карточкалар: тәулігіне күтілетін және өлшенген оқиға саны, D ауытқуы және δ белгісіздігі. NORMAL/WARNING — алгоритм шешімі. Графиктер: D(t), N(L) және δ(t). Журнал дабылдарды жазады.','Cards: expected and measured events per day, deviation D and uncertainty δ. NORMAL or WARNING is the algorithm’s decision. Charts: D(t), N(L) and δ(t). The log records alarms.'],[14,3,0],42,0.2,0.9,RST],
+[['6. Фон, статистика, топливо','6. Фон, статистика, отын','6. Background, statistics, fuel'],['События случайны: δ=1/√N (≈2,5% за сутки, ≈1% за неделю). Включён фон 23%+1,8%. Выгорание топлива меняет сигнал на ≈4%, но ожидаемое значение это учитывает, поэтому тревоги нет.','Оқиғалар кездейсоқ: δ=1/√N (тәулікте ≈2,5%, аптада ≈1%). Фон 23%+1,8% қосылған. Отынның жануы сигналды ≈4%-ға өзгертеді, бірақ күтілетін мән мұны ескереді — дабыл жоқ.','Events are random: δ=1/√N (≈2.5% per day, ≈1% per week). Background 23%+1.8% is on. Fuel burnup changes the signal by ≈4%, but the expected value accounts for it, so no alarm.'],[0,6,0],36,-0.8,1.0,function(){setV({T:1,bg:1,B:100})}],
+[['7. Аномалии','7. Ауытқулар','7. Anomalies'],['Реальная мощность упала на 10% скачком, а приборы этого «не знают». Скачок — резкое изменение, дрейф — медленное (кнопка «Плавный дрейф»). Красный пунктир на графике — истинная мощность; алгоритм сам поднимает WARNING.','Нақты қуат секіріспен 10%-ға түсті, ал құралдар мұны «білмейді». Секіріс — тез, дрейф — баяу өзгеріс («Баяу дрейф» түймесі). Графиктегі қызыл пунктир — шын қуат; алгоритм өзі WARNING көтереді.','Real power dropped 10% in a jump, but the instruments “don’t know”. A jump is abrupt, drift is slow (the “Gradual drift” button). The red dashed line is the true power; the algorithm raises WARNING by itself.'],[25,2,0],40,1.5,1.0,function(){setV({T:7,bg:0,B:0});S.drift=-10;driftT0=tsec;logAdd('скачок мощности −10%')}],
+[['8. Итоги','8. Қорытынды','8. Summary'],['Детектор даёт независимый канал о мощности и топливе, не вмешиваясь в реактор. Минус: для точности ≈1% нужны дни данных. Дальше алгоритм можно заменить обученной ИИ-моделью. Теперь экспериментируйте сами!','Детектор реакторға араласпай қуат пен отын туралы тәуелсіз арна береді. Кемшілігі: ≈1% дәлдікке бірнеше күн деректер керек. Әрі қарай алгоритмді оқытылған ЖИ-моделімен ауыстыруға болады. Енді өзіңіз тәжірибе жасаңыз!','The detector gives an independent channel on power and fuel without interfering with the reactor. Drawback: ≈1% precision needs days of data. Next, the algorithm can be replaced by a trained AI model. Now experiment yourself!'],[10,15,-25],110,0.5,0.7,RST]];
+function showTour(){var b=$('bubble');if(ti<0){b.style.display='none';return}var s=TY[ti],i=LG=='kk'?1:LG=='en'?2:0;b.style.display='block';$('btxt').innerHTML='<b>('+(ti+1)+'/'+TY.length+') '+s[0][i]+'</b><br>'+s[1][i];$('bnext').textContent=ti==TY.length-1?'Завершить урок':'Далее ▶'}
+function goTour(n){ti=n;$('welcome').style.display='none';
+ if(ti<0||ti>=TY.length){ti=-1;RST();camGoal={v:new THREE.Vector3(14,3,0),r:62,th:0.9,ph:1.15}}
+ else{var s=TY[ti];s[6]();camGoal={v:new THREE.Vector3(s[2][0],s[2][1],s[2][2]),r:s[3],th:s[4],ph:s[5]}}
+ $('tour').textContent=ti<0?'Режим «Урок»':'Далее ▶';$('tour2').textContent=ti<0?'▶ Начать обучение':'Далее ▶';showTour()}
+function nextTour(){goTour(ti+1)}
+['tour','tour2','go','bnext'].forEach(function(id){$(id).onclick=nextTour});
+$('bprev').onclick=function(){goTour(Math.max(0,ti-1))};$('bx').onclick=function(){goTour(-1)};
+$('skip').onclick=function(){$('welcome').style.display='none'};
+LP.push(['Добро пожаловать!','Қош келдіңіз!','Welcome!']);
+var moved=false,done=false,tk={},tt=0;
+renderer.domElement.addEventListener('pointermove',function(){if(drag)moved=true});
+function snap(){return {P:S.P,L:S.L,T:S.T,B:S.B,bg:S.bg}}
+var DN=['✅ Отлично! Идём дальше.','✅ Керемет! Әрі қарай.','✅ Great! Moving on.'];
+var TY=[
+[[['1. Знакомство','1. Танысу','1. Meet the model'],['Это 3D-модель АЭС ВВЭР-1200: реактор в центре, справа детектор антинейтрино на рельсе. Он считает частицы, прошедшие сквозь стены.','Бұл ВВЭР-1200 АЭС-інің 3D-моделі: ортада реактор, оң жақта рельстегі антинейтрино детекторы. Ол қабырғалардан өткен бөлшектерді санайды.','A 3D model of the VVER-1200 plant: reactor in the centre, an antineutrino detector on a rail to the right. It counts particles that passed through the walls.'],['🎯 Покрутите камеру: проведите по сцене мышью или пальцем.','🎯 Камераны айналдырыңыз: сахнада тінтуірмен немесе саусақпен сүйреңіз.','🎯 Rotate the camera: drag on the scene with mouse or finger.']],[10,10,-18],95,0.9,0.85,function(){RST();moved=false},function(){return moved},[]],
+[[['2. Мощность','2. Қуат','2. Power'],['Антинейтрино рождаются при делении, поэтому их поток пропорционален тепловой мощности.','Антинейтрино бөліну кезінде туады, сондықтан ағын жылу қуатына пропорционал.','Antineutrinos are born in fission, so their flux is proportional to thermal power.'],['🎯 Подвигайте ползунок «Тепловая мощность» и следите за числом событий.','🎯 «Жылу қуаты» жүгірткісін жылжытып, оқиға санын бақылаңыз.','🎯 Move the “Thermal power” slider and watch the event count.']],[0,6,0],26,0.4,1.2,RST,function(a){return Math.abs(S.P-a.P)>=300},['P']],
+[[['3. Расстояние','3. Қашықтық','3. Distance'],['Поток расходится во все стороны, сигнал падает как 1/L². Дальше от реактора — меньше событий.','Ағын барлық бағытқа тарайды, сигнал 1/L² бойынша азаяды. Реактордан алыс — оқиға аз.','The flux spreads in all directions, so the signal falls as 1/L². Farther from the reactor — fewer events.'],['🎯 Подвигайте ползунок «Расстояние» и посмотрите график N(L).','🎯 «Қашықтық» жүгірткісін жылжытып, N(L) графигін қараңыз.','🎯 Move the “Distance” slider and watch the N(L) chart.']],[28,2,0],38,1.9,1.1,RST,function(a){return Math.abs(S.L-a.L)>=8},['L']],
+[[['4. Точность и фон','4. Дәлдік және фон','4. Precision and background'],['События случайны: чем дольше измерение, тем меньше неопределённость δ. Реальный фон (23%+1,8%) мешает.','Оқиғалар кездейсоқ: өлшеу ұзағырақ болса, δ белгісіздігі аз. Нақты фон (23%+1,8%) кедергі келтіреді.','Events are random: the longer the measurement, the smaller the uncertainty δ. Real background (23%+1.8%) interferes.'],['🎯 Смените длительность измерения и включите «Реалистичный режим».','🎯 Өлшеу ұзақтығын өзгертіп, «Нақты режимді» қосыңыз.','🎯 Change the duration and enable “Realistic mode”.']],[14,3,0],45,0.3,0.9,function(){setV({P:3200,L:20,B:0,T:1,bg:0,a:[0,0,0,0]})},function(a){return S.T!=a.T&&S.bg},['T','bg']],
+[[['5. Топливо','5. Отын','5. Fuel'],['По мере выгорания доля ²³⁵U падает, а ²³⁹Pu растёт, сигнал меняется на ≈4%. Алгоритм это учитывает.','Жану барысында ²³⁵U үлесі азайып, ²³⁹Pu артады, сигнал ≈4%-ға өзгереді. Алгоритм мұны ескереді.','As fuel burns, the ²³⁵U share falls and ²³⁹Pu grows, shifting the signal by ≈4%. The algorithm accounts for it.'],['🎯 Сдвиньте «Выгорание топлива» не меньше чем наполовину.','🎯 «Отынның жануын» кемінде жартысына жылжытыңыз.','🎯 Move “Fuel burnup” at least halfway.']],[0,6,0],36,-0.8,1.0,RST,function(){return S.B>=50},['B']],
+[[['6. Скачок','6. Секіріс','6. Jump'],['Скачок — резкое падение реальной мощности на 10%. Приборы его «не видят», а детектор замечает.','Секіріс — нақты қуаттың кенет 10%-ға түсуі. Құралдар «көрмейді», ал детектор байқайды.','A jump is an abrupt 10% drop in real power. Instruments don’t “see” it, but the detector does.'],['🎯 Нажмите «Скачок −10%» и дождитесь WARNING.','🎯 «Секіріс −10%» түймесін басып, WARNING күтіңіз.','🎯 Press “Jump −10%” and wait for WARNING.']],[25,2,0],40,1.5,1.0,RST,function(){return S.drift<0&&!driftOn},['jump']],
+[[['7. Дрейф','7. Дрейф','7. Drift'],['Дрейф — медленный уход мощности (износ, разбаланс). Его трудно заметить, но статистика накапливается.','Дрейф — қуаттың баяу ауытқуы (тозу, теңгерімсіздік). Байқау қиын, бірақ статистика жинақталады.','Drift is a slow power shift (wear, imbalance). Hard to notice, but statistics accumulate.'],['🎯 Нажмите «Плавный дрейф мощности» и следите за красным пунктиром.','🎯 «Қуаттың баяу дрейфі» түймесін басып, қызыл пунктирді бақылаңыз.','🎯 Press “Gradual power drift” and watch the red dashed line.']],[14,6,-8],70,2.6,0.9,RST,function(){return driftOn},['drift']],
+[[['8. Аномалии и итог','8. Ауытқулар және қорытынды','8. Anomalies and summary'],['Можно имитировать и другие сбои: падение или рост мощности, сдвиг топлива, деградацию детектора. Детектор — независимый канал контроля, не вмешивающийся в реактор.','Басқа ақауларды да имитациялауға болады: қуаттың түсуі немесе өсуі, отын ығысуы, детектор деградациясы. Детектор — реакторға араласпайтын тәуелсіз бақылау арнасы.','You can simulate other faults: power drop or rise, fuel shift, detector degradation. The detector is an independent monitoring channel that does not interfere with the reactor.'],['🎯 Отметьте любую галочку в блоке «Имитация аномалий».','🎯 «Ауытқуларды имитациялау» блогынан кез келген белгіні қойыңыз.','🎯 Tick any box in “Anomaly simulation”.']],[10,15,-25],110,0.5,0.7,RST,function(){return S.a1||S.a2||S.a3||S.a4},['a1']]];
+function chk(){if(ti<0||done)return;if(TY[ti][6](tk)){done=true;clearTimeout(tt);showTour()}}
+['input','change','click','pointerup'].forEach(function(e){document.addEventListener(e,chk)});
+function showTour(){var b=$('bubble');if(ti<0){b.style.display='none';return}var s=TY[ti],i=LG=='kk'?1:LG=='en'?2:0;b.style.display='block';$('btxt').innerHTML='<b>('+(ti+1)+'/'+TY.length+') '+s[0][0][i]+'</b><br>'+s[0][1][i]+'<div class="task'+(done?' ok':'')+'">'+(done?DN[i]:s[0][2][i])+'</div>';$('bnext').disabled=!done;$('bnext').textContent=ti==TY.length-1?'Завершить урок':'Далее ▶'}
+function goTour(n){ti=n;clearTimeout(tt);$('welcome').style.display='none';
+ document.querySelectorAll('.hl').forEach(function(e){e.classList.remove('hl')});
+ if(ti<0||ti>=TY.length){ti=-1;done=true;RST();camGoal={v:new THREE.Vector3(14,3,0),r:62,th:0.9,ph:1.15}}
+ else{var s=TY[ti];done=false;s[5]();tk=snap();moved=false;camGoal={v:new THREE.Vector3(s[1][0],s[1][1],s[1][2]),r:s[2],th:s[3],ph:s[4]};
+  s[7].forEach(function(id,k){var e=$(id);if(!e)return;e=e.type=='checkbox'?e.parentNode:e;e.classList.add('hl');if(!k)e.scrollIntoView({block:'center',behavior:'smooth'})});
+  if(!s[7].length)done=false;tt=setTimeout(function(){done=true;showTour()},35000)}
+ showTour()}
+LP.push(['Мощность','Қуат','Power'],['Расстояние','Қашықтық','Distance'],['Измерено','Өлшенді','Measured'],['Отклонение','Ауытқу','Deviation'],['Статус','Күй','Status']);
+function updHud(){var st=$('status');$('h1').textContent=S.P+' МВт';$('h2').textContent=S.L.toFixed(1)+' '+U('m');$('h3').textContent=$('ne').textContent+' '+U('e');$('h4').textContent=$('nm').textContent+' '+U('e');$('h5').textContent=$('dd').textContent;$('h6').textContent=st.textContent.split(' —')[0];$('hs').className='chip s'+(st.className=='w'?' w':'')}
+var _m=measure;measure=function(){_m();updHud()};
+['input','change','click'].forEach(function(e){document.addEventListener(e,function(){setTimeout(updHud,0)})});
+LP.push(['Пройти урок','Сабақтан өту','Take the tutorial']);
+$('tour2').onclick=function(){goTour(0)};
+if(window.ResizeObserver)new ResizeObserver(function(){resize()}).observe(renderer.domElement);
+
+readUI();measure();frame();setLang('ru');
+})();
+</script>
+</body>
+</html>
